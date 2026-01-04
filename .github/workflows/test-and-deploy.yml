@@ -1,0 +1,132 @@
+name: Test and Deploy
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+      
+      - name: Run tests with Maven
+        run: mvn test -B
+      
+      - name: Build application
+        run: mvn clean package -DskipTests -B
+
+  docker-deployment:
+    name: Docker Build and Deployment Test
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Docker image
+        run: docker build -t javanext:latest .
+      
+      - name: Start services with docker-compose
+        run: |
+          docker-compose up -d
+          echo "Waiting for services to be healthy..."
+      
+      - name: Wait for application to be ready
+        run: |
+          echo "Waiting for application to start..."
+          timeout 120 bash -c 'until docker-compose ps | grep javanext-app | grep -q "healthy"; do sleep 5; echo "Still waiting..."; done' || (echo "Application failed to become healthy" && docker-compose logs app && exit 1)
+          echo "Application is healthy!"
+      
+      - name: Verify PostgreSQL service
+        run: |
+          echo "Checking PostgreSQL health..."
+          docker-compose exec -T postgres pg_isready -U postgres
+      
+      - name: Verify Kafka service
+        run: |
+          echo "Checking Kafka..."
+          docker-compose exec -T kafka kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1
+          echo "Kafka is running!"
+      
+      - name: Test application endpoints
+        run: |
+          echo "Testing root endpoint..."
+          response=$(curl -s http://localhost:8080/)
+          echo "Response: $response"
+          if [[ ! "$response" =~ "Welcome to JavaNext" ]]; then
+            echo "Root endpoint test failed!"
+            exit 1
+          fi
+          
+          echo "Testing /hello endpoint..."
+          response=$(curl -s http://localhost:8080/hello)
+          echo "Response: $response"
+          if [[ ! "$response" =~ "Hello from Spring Boot" ]]; then
+            echo "/hello endpoint test failed!"
+            exit 1
+          fi
+          
+          echo "All endpoint tests passed!"
+      
+      - name: Test order creation functionality
+        run: |
+          echo "Testing order creation endpoint..."
+          
+          # First, get a product ID by checking if we can interact with the database
+          # We'll create an order with a random product ID
+          
+          response=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/orders/bulk \
+            -H "Content-Type: application/json" \
+            -H "Idempotency-Key: test-ci-$(date +%s)" \
+            -d '{
+              "customerId": "550e8400-e29b-41d4-a716-446655440000",
+              "orders": []
+            }')
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "HTTP Status: $http_code"
+          echo "Response body: $body"
+          
+          # Accept both 200 and 201 as successful responses
+          if [[ "$http_code" == "200" ]] || [[ "$http_code" == "201" ]]; then
+            echo "Order endpoint is accessible and responding!"
+          else
+            echo "Order endpoint test failed with status $http_code"
+            exit 1
+          fi
+      
+      - name: Check application logs
+        if: always()
+        run: |
+          echo "=== Application Logs ==="
+          docker-compose logs app
+      
+      - name: Show service status
+        if: always()
+        run: docker-compose ps
+      
+      - name: Cleanup
+        if: always()
+        run: |
+          docker-compose down -v
+          docker system prune -f
