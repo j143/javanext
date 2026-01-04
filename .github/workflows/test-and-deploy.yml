@@ -44,26 +44,26 @@ jobs:
       - name: Build Docker image
         run: docker build -t javanext:latest .
       
-      - name: Start services with docker-compose
+      - name: Start services with docker compose
         run: |
-          docker-compose up -d
+          docker compose up -d
           echo "Waiting for services to be healthy..."
       
       - name: Wait for application to be ready
         run: |
           echo "Waiting for application to start..."
-          timeout 120 bash -c 'until docker-compose ps | grep javanext-app | grep -q "healthy"; do sleep 5; echo "Still waiting..."; done' || (echo "Application failed to become healthy" && docker-compose logs app && exit 1)
+          timeout 120 bash -c 'until docker compose ps | grep javanext-app | grep -q "healthy"; do sleep 5; echo "Still waiting..."; done' || (echo "Application failed to become healthy" && docker compose logs app && exit 1)
           echo "Application is healthy!"
       
       - name: Verify PostgreSQL service
         run: |
           echo "Checking PostgreSQL health..."
-          docker-compose exec -T postgres pg_isready -U postgres
+          docker compose exec -T postgres pg_isready -U postgres
       
       - name: Verify Kafka service
         run: |
           echo "Checking Kafka..."
-          docker-compose exec -T kafka kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1
+          docker compose exec -T kafka kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1
           echo "Kafka is running!"
       
       - name: Test application endpoints
@@ -119,14 +119,14 @@ jobs:
         if: always()
         run: |
           echo "=== Application Logs ==="
-          docker-compose logs app
+          docker compose logs app
       
       - name: Show service status
         if: always()
-        run: docker-compose ps
+        run: docker compose ps
       
       - name: Cleanup
         if: always()
         run: |
-          docker-compose down -v
+          docker compose down -v
           docker system prune -f
