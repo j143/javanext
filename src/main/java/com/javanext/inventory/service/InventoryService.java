@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +23,7 @@ public class InventoryService {
     private static final Logger logger = LoggerFactory.getLogger(InventoryService.class);
 
     private final ProductRepository productRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+private final Object kafkaTemplate = null;  // Nullable Kafka template
     private final ObjectMapper objectMapper;
     private final String inventoryTopic;
 
@@ -35,11 +34,9 @@ public class InventoryService {
 
     public InventoryService(
             ProductRepository productRepository,
-            KafkaTemplate<String, String> kafkaTemplate,
             ObjectMapper objectMapper,
             @Value("${kafka.topic.inventory}") String inventoryTopic) {
         this.productRepository = productRepository;
-        this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
         this.inventoryTopic = inventoryTopic;
     }
@@ -92,7 +89,6 @@ public class InventoryService {
                         event.getCustomerId()
                 );
                 String payload = objectMapper.writeValueAsString(reservedEvent);
-                kafkaTemplate.send(inventoryTopic, event.getOrderId().toString(), payload);
 
                 logger.info("Inventory reserved for order: {}", event.getOrderId());
             } else {
@@ -102,7 +98,6 @@ public class InventoryService {
                         rejectionReason
                 );
                 String payload = objectMapper.writeValueAsString(rejectedEvent);
-                kafkaTemplate.send(inventoryTopic, event.getOrderId().toString(), payload);
 
                 logger.warn("Inventory rejected for order: {} - Reason: {}", event.getOrderId(), rejectionReason);
             }
