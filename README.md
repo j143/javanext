@@ -23,34 +23,66 @@ This application implements a realistic e-commerce backend with three bounded co
 - Maven 3.6 or higher
 - Docker and Docker Compose (for running PostgreSQL and Kafka)
 
+## CI/CD and Testing
+
+This project includes a GitHub Actions workflow that:
+- Runs all tests automatically on push and pull requests
+- Builds the Docker image
+- Deploys and tests the full application stack with docker compose
+- Verifies service functionality with health checks and endpoint tests
+
+The workflow is defined in `.github/workflows/test-and-deploy.yml` and runs on every push to `main` or `develop` branches, as well as on pull requests.
+
 ## Quick Start
 
-### 1. Start Infrastructure Services
+### Option 1: Run with Docker Compose (Recommended)
+
+This option runs the entire application stack (PostgreSQL, Kafka, and the application) in Docker containers.
+
+```bash
+# Build and start all services
+docker compose up -d
+
+# Wait for all services to be healthy (may take 30-60 seconds)
+docker compose ps
+
+# View application logs
+docker compose logs -f app
+
+# Stop all services
+docker compose down
+```
+
+The application will be available at http://localhost:8080
+
+### Option 2: Run Locally with Maven
+
+This option runs just the Spring Boot application locally, while infrastructure services (PostgreSQL and Kafka) run in Docker.
+
+#### 1. Start Infrastructure Services
 
 Start PostgreSQL and Kafka using Docker Compose:
 
 ```bash
-docker-compose up -d
+docker compose up -d postgres kafka zookeeper
+
+# Wait for services to be healthy
+docker compose ps
 ```
 
-Wait for services to be healthy:
-```bash
-docker-compose ps
-```
-
-### 2. Build the Application
+#### 2. Build the Application
 
 ```bash
 mvn clean compile
 ```
 
-### 3. Run Tests
+#### 3. Run Tests
 
 ```bash
 mvn test
 ```
 
-### 4. Run the Application
+#### 4. Run the Application
 
 ```bash
 mvn spring-boot:run
@@ -182,27 +214,27 @@ src/main/java/com/javanext/
 
 ## Stopping Services
 
-Stop the application: `Ctrl+C`
+Stop the application: `Ctrl+C` (if running with Maven)
 
-Stop infrastructure:
+Stop all Docker containers:
 ```bash
-docker-compose down
+docker compose down
 ```
 
-Clean up volumes:
+Clean up volumes (removes all data):
 ```bash
-docker-compose down -v
+docker compose down -v
 ```
 
 ## Troubleshooting
 
 **Connection refused to PostgreSQL**:
-- Ensure Docker Compose is running: `docker-compose ps`
-- Check PostgreSQL logs: `docker-compose logs postgres`
+- Ensure Docker Compose is running: `docker compose ps`
+- Check PostgreSQL logs: `docker compose logs postgres`
 
 **Kafka connection issues**:
-- Ensure Kafka is running: `docker-compose ps`
-- Check Kafka logs: `docker-compose logs kafka`
+- Ensure Kafka is running: `docker compose ps`
+- Check Kafka logs: `docker compose logs kafka`
 
 **Orders stuck in PENDING**:
 - Check Kafka consumer logs for errors
