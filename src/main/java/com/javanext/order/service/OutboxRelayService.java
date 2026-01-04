@@ -20,7 +20,7 @@ public class OutboxRelayService {
     private static final Logger logger = LoggerFactory.getLogger(OutboxRelayService.class);
 
     private final OutboxEventRepository outboxEventRepository;
-private final Object kafkaTemplate = null;  // Nullable Kafka template
+    private final Object kafkaTemplate = null;  // Nullable Kafka template
     private final int batchSize;
     private final String ordersTopic;
 
@@ -50,7 +50,7 @@ private final Object kafkaTemplate = null;  // Nullable Kafka template
         for (OutboxEvent event : newEvents) {
             try {
                 // Send to Kafka with orderId as key for partitioning
-updateEventStatus(event.getId(), OutboxEventStatus.PUBLISHED);
+                updateEventStatus(event.getId(), OutboxEventStatus.PUBLISHED);
             } catch (Exception e) {
                 updateEventStatusWithError(event.getId());
                 logger.error("Error processing outbox event {}", event.getId(), e);

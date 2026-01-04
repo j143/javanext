@@ -2,6 +2,7 @@ package com.javanext.inventory.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.javanext.inventory.domain.Product;
+import com.javanext.inventory.dto.ProductRequest;
 import com.javanext.inventory.event.InventoryRejectedEvent;
 import com.javanext.inventory.event.InventoryReservedEvent;
 import com.javanext.inventory.repository.ProductRepository;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -109,5 +111,61 @@ private final Object kafkaTemplate = null;  // Nullable Kafka template
             logger.error("Error processing order created event", e);
             throw new RuntimeException("Failed to process inventory reservation", e);
         }
+    }
+
+    // Product management methods
+    public List<Product> getAllProducts() {
+        return productRepository.findAll();
+    }
+
+    public Product getProductById(UUID id) {
+        return productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+    }
+
+    public Product getProductBySku(String sku) {
+        return productRepository.findBySku(sku)
+                .orElseThrow(() -> new RuntimeException("Product not found with sku: " + sku));
+    }
+
+    @Transactional
+    public Product createProduct(ProductRequest request) {
+        // Check if SKU already exists
+        if (productRepository.findBySku(request.getSku()).isPresent()) {
+            throw new RuntimeException("Product with SKU already exists: " + request.getSku());
+        }
+
+        Product product = new Product();
+        product.setSku(request.getSku());
+        product.setName(request.getName());
+        product.setQuantity(request.getQuantity());
+        product.setPrice(request.getPrice());
+
+        return productRepository.save(product);
+    }
+
+    @Transactional
+    public Product updateProduct(UUID id, ProductRequest request) {
+        Product product = getProductById(id);
+
+        // Check if SKU is being changed and if it conflicts with another product
+        if (!product.getSku().equals(request.getSku())) {
+            if (productRepository.findBySku(request.getSku()).isPresent()) {
+                throw new RuntimeException("Product with SKU already exists: " + request.getSku());
+            }
+        }
+
+        product.setSku(request.getSku());
+        product.setName(request.getName());
+        product.setQuantity(request.getQuantity());
+        product.setPrice(request.getPrice());
+
+        return productRepository.save(product);
+    }
+
+    public List<Product> getLowStockProducts(int threshold) {
+        return productRepository.findAll().stream()
+                .filter(p -> (p.getQuantity() - p.getReservedQuantity()) <= threshold)
+                .toList();
     }
 }

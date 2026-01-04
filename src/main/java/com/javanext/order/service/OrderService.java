@@ -149,6 +149,24 @@ public class OrderService {
         }
     }
 
+    private String computeRequestHash(OrderCreateRequest request) {
+        try {
+            // Serialize request to JSON for hashing
+            String jsonRequest = objectMapper.writeValueAsString(request);
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(jsonRequest.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (JsonProcessingException | NoSuchAlgorithmException e) {
+            throw new RuntimeException("Failed to compute request hash", e);
+        }
+    }
+
     private OrderResponse toOrderResponse(Order order) {
         return new OrderResponse(
                 order.getId(),
@@ -159,10 +177,75 @@ public class OrderService {
         );
     }
 
+    public List<OrderResponse> getAllOrders() {
+        return orderRepository.findAll().stream()
+                .map(this::toOrderResponse)
+                .collect(Collectors.toList());
+    }
+
     public OrderResponse getOrder(UUID orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
         return toOrderResponse(order);
+    }
+
+    @Transactional
+    public OrderResponse createOrder(OrderCreateRequest request, String idempotencyKey) {
+        // Generate a customer ID (in real app, this would come from auth context)
+        UUID customerId = UUID.randomUUID();
+
+        // Compute request hash for idempotency
+        String requestHash = computeRequestHash(request);
+
+        // Check for existing idempotency key
+        Optional<IdempotencyKey> existingKey = idempotencyKeyRepository
+                .findByCustomerIdAndKey(customerId, idempotencyKey);
+
+        if (existingKey.isPresent()) {
+            if (!existingKey.get().getRequestHash().equals(requestHash)) {
+                throw new RuntimeException("Idempotency key reused with different request data");
+            }
+            // Return existing order
+            return getOrder(existingKey.get().getOrderId());
+        }
+
+        // Create order
+        Order order = new Order();
+        order.setCustomerId(customerId);
+        order.setStatus(OrderStatus.PENDING);
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        List<OrderItem> orderItems = new ArrayList<>();
+
+        for (OrderItemRequest itemRequest : request.getItems()) {
+            OrderItem item = new OrderItem();
+            item.setOrder(order);
+            item.setProductId(itemRequest.getProductId());
+            item.setQuantity(itemRequest.getQuantity());
+            item.setUnitPrice(itemRequest.getUnitPrice());
+
+            BigDecimal itemTotal = itemRequest.getUnitPrice().multiply(BigDecimal.valueOf(itemRequest.getQuantity()));
+            totalAmount = totalAmount.add(itemTotal);
+
+            orderItems.add(item);
+        }
+
+        order.setItems(orderItems);
+        order.setTotalAmount(totalAmount);
+        Order savedOrder = orderRepository.save(order);
+
+        // Store idempotency key
+        IdempotencyKey key = new IdempotencyKey();
+        key.setCustomerId(customerId);
+        key.setKey(idempotencyKey);
+        key.setOrderId(savedOrder.getId());
+        key.setRequestHash(requestHash);
+        idempotencyKeyRepository.save(key);
+
+        // Create outbox event
+        createOutboxEvent(savedOrder);
+
+        return toOrderResponse(savedOrder);
     }
 
     @Transactional
