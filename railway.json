@@ -1,0 +1,25 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "dockerfile",
+    "context": ".",
+    "dockerfile": "Dockerfile"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "restartPolicyType": "always",
+    "restartPolicyMaxRetries": 5
+  },
+  "env": {
+    "SPRING_PROFILES_ACTIVE": "production",
+    "JAVA_OPTS": "-Xmx512m -Xms256m"
+  },
+  "healthCheck": {
+    "method": "GET",
+    "path": "/actuator/health",
+    "timeout": 10,
+    "interval": 10,
+    "successThreshold": 1,
+    "failureThreshold": 3
+  }
+}
