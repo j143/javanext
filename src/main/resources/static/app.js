@@ -438,7 +438,7 @@ async function handleCreateOrder(event) {
         const price = parseFloat(itemDiv.querySelector('input[name="price"]').value);
 
         if (productId && quantity && price) {
-            items.push({ productId, quantity, price });
+            items.push({ productId, quantity, unitPrice: price });
         }
     });
 
@@ -491,7 +491,7 @@ async function handleBulkOrder(event) {
         const price = parseFloat(itemDiv.querySelector('input[name="price"]').value);
 
         if (productId && quantity && price) {
-            itemTemplate.push({ productId, quantity, price });
+            itemTemplate.push({ productId, quantity, unitPrice: price });
         }
     });
 
