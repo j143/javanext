@@ -11,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,7 +25,7 @@ public class PaymentService {
     private static final Logger logger = LoggerFactory.getLogger(PaymentService.class);
 
     private final PaymentRepository paymentRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+private final Object kafkaTemplate = null;  // Nullable Kafka template
     private final ObjectMapper objectMapper;
     private final String paymentsTopic;
     private final Random random = new Random();
@@ -38,11 +37,9 @@ public class PaymentService {
 
     public PaymentService(
             PaymentRepository paymentRepository,
-            KafkaTemplate<String, String> kafkaTemplate,
             ObjectMapper objectMapper,
             @Value("${kafka.topic.payments}") String paymentsTopic) {
         this.paymentRepository = paymentRepository;
-        this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
         this.paymentsTopic = paymentsTopic;
     }
@@ -93,7 +90,6 @@ public class PaymentService {
                         savedPayment.getProviderRef()
                 );
                 String payload = objectMapper.writeValueAsString(completedEvent);
-                kafkaTemplate.send(paymentsTopic, event.getOrderId().toString(), payload);
 
                 logger.info("Payment completed for order: {}", event.getOrderId());
             } else {
