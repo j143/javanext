@@ -103,7 +103,6 @@ private final Object kafkaTemplate = null;  // Nullable Kafka template
                         "Payment gateway declined transaction"
                 );
                 String payload = objectMapper.writeValueAsString(failedEvent);
-                kafkaTemplate.send(paymentsTopic, event.getOrderId().toString(), payload);
 
                 logger.warn("Payment failed for order: {}", event.getOrderId());
             }
