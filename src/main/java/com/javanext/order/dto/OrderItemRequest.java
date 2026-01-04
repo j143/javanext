@@ -15,7 +15,7 @@ public class OrderItemRequest {
     private Integer quantity;
 
     @NotNull(message = "Unit price is required")
-    @Min(value = 0, message = "Unit price must be positive")
+    @Min(value = 0, message = "Unit price must be non-negative")
     private BigDecimal unitPrice;
 
     // Getters and Setters

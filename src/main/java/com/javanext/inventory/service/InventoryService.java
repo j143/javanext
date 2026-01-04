@@ -29,6 +29,8 @@ public class InventoryService {
     private final String inventoryTopic;
 
     // Track processed event IDs for idempotency
+    // NOTE: In-memory tracking is acceptable for demo/first-pass implementation
+    // For production, use database-backed idempotency tracking for persistence and thread-safety
     private final Map<UUID, Boolean> processedEvents = new HashMap<>();
 
     public InventoryService(

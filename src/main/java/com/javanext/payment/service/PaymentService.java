@@ -32,6 +32,8 @@ public class PaymentService {
     private final Random random = new Random();
 
     // Track processed event IDs for idempotency
+    // NOTE: In-memory tracking is acceptable for demo/first-pass implementation
+    // For production, use database-backed idempotency tracking for persistence and thread-safety
     private final Map<UUID, Boolean> processedEvents = new HashMap<>();
 
     public PaymentService(
@@ -67,6 +69,7 @@ public class PaymentService {
             }
 
             // Simulate payment processing with delay
+            // TODO: Replace Thread.sleep with reactive/async processing for better throughput
             Thread.sleep(1000 + random.nextInt(2000)); // 1-3 seconds delay
 
             // Simulate random payment failure (20% chance)
@@ -74,7 +77,8 @@ public class PaymentService {
 
             Payment payment = new Payment();
             payment.setOrderId(event.getOrderId());
-            payment.setAmount(java.math.BigDecimal.ZERO); // Would be set from order in real scenario
+            // TODO: Get actual order amount from event payload or order lookup
+            payment.setAmount(java.math.BigDecimal.ZERO);
             payment.setProviderRef(UUID.randomUUID().toString());
 
             if (paymentSucceeded) {
