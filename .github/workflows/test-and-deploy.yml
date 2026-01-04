@@ -52,8 +52,17 @@ jobs:
       - name: Wait for application to be ready
         run: |
           echo "Waiting for application to start..."
-          timeout 120 bash -c 'until docker compose ps | grep javanext-app | grep -q "healthy"; do sleep 5; echo "Still waiting..."; done' || (echo "Application failed to become healthy" && docker compose logs app && exit 1)
-          echo "Application is healthy!"
+          for i in {1..24}; do
+            if docker compose exec -T app curl -f http://localhost:8080/hello > /dev/null 2>&1; then
+              echo "Application is healthy!"
+              exit 0
+            fi
+            echo "Still waiting... (attempt $i/24)"
+            sleep 5
+          done
+          echo "Application failed to become healthy"
+          docker compose logs app
+          exit 1
       
       - name: Verify PostgreSQL service
         run: |
@@ -63,7 +72,7 @@ jobs:
       - name: Verify Kafka service
         run: |
           echo "Checking Kafka..."
-          docker compose exec -T kafka kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1
+          docker compose exec -T kafka kafka-broker-api-versions --bootstrap-server kafka:9092 > /dev/null 2>&1
           echo "Kafka is running!"
       
       - name: Test application endpoints
@@ -90,12 +99,9 @@ jobs:
         run: |
           echo "Testing order creation endpoint..."
           
-          # First, get a product ID by checking if we can interact with the database
-          # We'll create an order with a random product ID
-          
           response=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/orders/bulk \
             -H "Content-Type: application/json" \
-            -H "Idempotency-Key: test-ci-$(date +%s)" \
+            -H "Idempotency-Key: test-ci-${{ github.run_id }}-${{ github.run_attempt }}" \
             -d '{
               "customerId": "550e8400-e29b-41d4-a716-446655440000",
               "orders": []
