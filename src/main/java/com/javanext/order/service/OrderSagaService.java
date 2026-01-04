@@ -24,6 +24,8 @@ public class OrderSagaService {
     private final ObjectMapper objectMapper;
 
     // Track processed event IDs for idempotency
+    // NOTE: In-memory tracking is acceptable for demo/first-pass implementation
+    // For production, use database-backed idempotency tracking for persistence and thread-safety
     private final Map<UUID, Boolean> processedPaymentEvents = new HashMap<>();
     private final Map<UUID, Boolean> processedInventoryEvents = new HashMap<>();
 
