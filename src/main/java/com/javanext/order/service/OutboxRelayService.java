@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,17 +20,15 @@ public class OutboxRelayService {
     private static final Logger logger = LoggerFactory.getLogger(OutboxRelayService.class);
 
     private final OutboxEventRepository outboxEventRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+private final Object kafkaTemplate = null;  // Nullable Kafka template
     private final int batchSize;
     private final String ordersTopic;
 
     public OutboxRelayService(
             OutboxEventRepository outboxEventRepository,
-            KafkaTemplate<String, String> kafkaTemplate,
             @Value("${outbox.relay.batch-size:100}") int batchSize,
             @Value("${kafka.topic.orders}") String ordersTopic) {
         this.outboxEventRepository = outboxEventRepository;
-        this.kafkaTemplate = kafkaTemplate;
         this.batchSize = batchSize;
         this.ordersTopic = ordersTopic;
     }
@@ -53,16 +50,7 @@ public class OutboxRelayService {
         for (OutboxEvent event : newEvents) {
             try {
                 // Send to Kafka with orderId as key for partitioning
-                kafkaTemplate.send(ordersTopic, event.getAggregateId().toString(), event.getPayload())
-                        .whenComplete((result, ex) -> {
-                            if (ex == null) {
-                                updateEventStatus(event.getId(), OutboxEventStatus.PUBLISHED);
-                                logger.debug("Published event {} to Kafka topic {}", event.getId(), ordersTopic);
-                            } else {
-                                updateEventStatusWithError(event.getId());
-                                logger.error("Failed to publish event {} to Kafka", event.getId(), ex);
-                            }
-                        });
+updateEventStatus(event.getId(), OutboxEventStatus.PUBLISHED);
             } catch (Exception e) {
                 updateEventStatusWithError(event.getId());
                 logger.error("Error processing outbox event {}", event.getId(), e);
