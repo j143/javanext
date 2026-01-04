@@ -126,9 +126,9 @@ jobs:
             -H "Content-Type: application/json" \
             -H "Idempotency-Key: test-ci-${{ github.run_id }}-${{ github.run_attempt }}" \
             -d '{
-              "customerId": "550e8400-e29b-41d4-a716-446655440000",
-              "orders": []
-            }')
+              "customerId":"ff57c736-8fcb-4c22-93ba-2450b5842097",
+              "orders":[{"items":[{"productId":"904a88a7-f3c6-4f71-9b07-e1c7857e384b","quantity":1,"unitPrice":29.99}]}]
+              }')
           
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
