@@ -27,10 +27,30 @@ jobs:
           cache: 'maven'
       
       - name: Run tests with Maven
-        run: mvn test -B
+        run: |
+          # Retry Maven command up to 3 times if it fails with 403
+          for i in 1 2 3; do
+            mvn test -B && break || {
+              if [ $i -eq 3 ]; then
+                exit 1
+              fi
+              echo "Maven test attempt $i failed, retrying in 10 seconds..."
+              sleep 10
+            }
+          done
       
       - name: Build application
-        run: mvn clean package -DskipTests -B
+        run: |
+          # Retry Maven command up to 3 times if it fails with 403
+          for i in 1 2 3; do
+            mvn clean package -DskipTests -B && break || {
+              if [ $i -eq 3 ]; then
+                exit 1
+              fi
+              echo "Maven build attempt $i failed, retrying in 10 seconds..."
+              sleep 10
+            }
+          done
 
   docker-deployment:
     name: Docker Build and Deployment Test

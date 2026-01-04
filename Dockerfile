@@ -3,12 +3,17 @@ FROM maven:3.9-eclipse-temurin-17 AS build
 
 WORKDIR /app
 
+# Copy Maven configuration
+COPY .mvn .mvn
+
 # Copy pom.xml and source code
 COPY pom.xml .
 COPY src ./src
 
-# Build the application
-RUN mvn clean package -DskipTests -B
+# Build the application with retry logic
+RUN mvn clean package -DskipTests -B || \
+    (sleep 10 && mvn clean package -DskipTests -B) || \
+    (sleep 10 && mvn clean package -DskipTests -B)
 
 # Runtime stage
 FROM eclipse-temurin:17-jre-alpine
