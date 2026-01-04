@@ -76,7 +76,7 @@ jobs:
         run: |
           echo "Waiting for application to start..."
           for i in {1..24}; do
-            if docker compose exec -T app curl -f http://localhost:8080/hello > /dev/null 2>&1; then
+            if docker compose exec -T app curl -f http://localhost:8080/api/health > /dev/null 2>&1; then
               echo "Application is healthy!"
               exit 0
             fi
@@ -100,22 +100,22 @@ jobs:
       
       - name: Test application endpoints
         run: |
-          echo "Testing root endpoint..."
+          echo "Testing root endpoint (static UI)..."
           response=$(curl -s http://localhost:8080/)
-          echo "Response: $response"
-          if [[ ! "$response" =~ "Welcome to JavaNext" ]]; then
+          echo "Response length: ${#response}"
+          if [[ -z "$response" ]]; then
             echo "Root endpoint test failed!"
             exit 1
           fi
-          
-          echo "Testing /hello endpoint..."
-          response=$(curl -s http://localhost:8080/hello)
+
+          echo "Testing /api/health endpoint..."
+          response=$(curl -s http://localhost:8080/api/health)
           echo "Response: $response"
-          if [[ ! "$response" =~ "Hello from Spring Boot" ]]; then
-            echo "/hello endpoint test failed!"
+          if [[ "$response" != "OK" ]]; then
+            echo "/api/health endpoint test failed!"
             exit 1
           fi
-          
+
           echo "All endpoint tests passed!"
       
       - name: Test order creation functionality
